@@ -23,8 +23,14 @@ HP_DARK     = (80, 10, 20)
 SWORD_COLOR = (220, 220, 240)
 BTN_HOVER   = (60, 50, 80)
 
+# Debug Colors
+DBG_PLAYER = (255, 255, 0)   # Yellow
+DBG_ENEMY  = (255, 0, 255)   # Magenta
+DBG_ATTACK = (255, 0, 0)     # Red
+DBG_TEXT   = (0, 255, 255)   # Cyan
 
-# --- ITEM CLASS ---
+
+# ITEM CLASS
 class Item(pygame.sprite.Sprite):
     def __init__(self, x, y, item_type):
         super().__init__()
@@ -46,7 +52,7 @@ class Item(pygame.sprite.Sprite):
         return surf
 
 
-# --- ENEMY CLASS ---
+# ENEMY CLASS
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -94,7 +100,7 @@ class Enemy(pygame.sprite.Sprite):
             self.rect.y += int((dy / dist) * self.speed)
 
 
-# --- PLAYER CLASS ---
+# PLAYER CLASS
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -125,8 +131,13 @@ class Player(pygame.sprite.Sprite):
     def _load_custom_sprites(self):
         directions = ['down', 'up', 'left', 'right']
         sprites = {d: [] for d in directions}
-        base_path = os.path.dirname(os.path.abspath(__file__))
         
+        # PyInstaller path resolution support
+        if hasattr(sys, '_MEIPASS'):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            
         try:
             for d in directions:
                 for i in range(1, 5):
@@ -221,7 +232,7 @@ class Player(pygame.sprite.Sprite):
             pygame.draw.rect(screen, SWORD_COLOR, self.attack_rect, border_radius=4)
 
 
-# --- INVENTORY & HUD OVERLAY ---
+# INVENTORY & HUD OVERLAY
 class InventoryUI:
     def __init__(self, font):
         self.font = font
@@ -338,15 +349,14 @@ class InventoryUI:
             screen.blit(info_text, (self.rect.centerx - info_text.get_width() // 2, self.rect.bottom - 40))
 
 
-# --- MENU MANAGER CLASS ---
+# MENU MANAGER CLASS
 class MenuSystem:
     def __init__(self, font, big_font):
         self.font = font
         self.big_font = big_font
-        self.rebinding_key = None  # Key currently being re-bound
+        self.rebinding_key = None
         self.fullscreen = False
 
-        # Keybind Dictionary
         self.keybinds = {
             'UP': pygame.K_w,
             'DOWN': pygame.K_s,
@@ -368,15 +378,11 @@ class MenuSystem:
 
     def draw_main_menu(self, screen, mouse_pos):
         screen.fill(UI_BG)
-
-        # Title
         title = self.big_font.render("ELIAN'S ADVENTURE", True, UI_BORDER)
         screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 100))
 
-        # Buttons
         btn_w, btn_h = 200, 45
         start_y = 240
-
         play_rect = self.draw_button(screen, "PLAY", SCREEN_WIDTH // 2 - btn_w // 2, start_y, btn_w, btn_h, pygame.Rect(SCREEN_WIDTH // 2 - btn_w // 2, start_y, btn_w, btn_h).collidepoint(mouse_pos))
         opts_rect = self.draw_button(screen, "OPTIONS", SCREEN_WIDTH // 2 - btn_w // 2, start_y + 65, btn_w, btn_h, pygame.Rect(SCREEN_WIDTH // 2 - btn_w // 2, start_y + 65, btn_w, btn_h).collidepoint(mouse_pos))
         quit_rect = self.draw_button(screen, "QUIT", SCREEN_WIDTH // 2 - btn_w // 2, start_y + 130, btn_w, btn_h, pygame.Rect(SCREEN_WIDTH // 2 - btn_w // 2, start_y + 130, btn_w, btn_h).collidepoint(mouse_pos))
@@ -385,7 +391,6 @@ class MenuSystem:
 
     def draw_options_menu(self, screen, mouse_pos):
         screen.fill(UI_BG)
-
         title = self.big_font.render("OPTIONS", True, UI_BORDER)
         screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 50))
 
@@ -393,24 +398,20 @@ class MenuSystem:
         y = 130
         rects = {}
 
-        # Fullscreen Toggle
         fs_str = "Display: FULLSCREEN" if self.fullscreen else "Display: WINDOWED"
         fs_rect = pygame.Rect(SCREEN_WIDTH // 2 - btn_w // 2, y, btn_w, btn_h)
         self.draw_button(screen, fs_str, fs_rect.x, fs_rect.y, btn_w, btn_h, fs_rect.collidepoint(mouse_pos))
         rects['FULLSCREEN'] = fs_rect
 
-        # Keybind rebind buttons
         y += 55
         for action, key_val in self.keybinds.items():
             key_name = pygame.key.name(key_val).upper()
             btn_text = f"Press Key..." if self.rebinding_key == action else f"{action}: [{key_name}]"
-            
             b_rect = pygame.Rect(SCREEN_WIDTH // 2 - btn_w // 2, y, btn_w, btn_h)
             self.draw_button(screen, btn_text, b_rect.x, b_rect.y, btn_w, btn_h, b_rect.collidepoint(mouse_pos))
             rects[action] = b_rect
             y += 48
 
-        # Back Button
         back_rect = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 60, 200, 40)
         self.draw_button(screen, "BACK", back_rect.x, back_rect.y, 200, 40, back_rect.collidepoint(mouse_pos))
         rects['BACK'] = back_rect
@@ -418,7 +419,7 @@ class MenuSystem:
         return rects
 
 
-# --- MAIN ENGINE ---
+# MAIN ENGINE
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Elian's Adventure")
@@ -428,9 +429,12 @@ def main():
     big_font = pygame.font.SysFont("arial", 36, bold=True)
 
     menu_sys = MenuSystem(font, big_font)
-    state = "MENU"  # Game States: 'MENU', 'OPTIONS', 'GAME'
+    state = "MENU"
+    
+    # State tracking
+    debug_mode = False 
 
-    # Game Objects Initialization
+    # Game Objects
     player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
     inventory_ui = InventoryUI(font)
 
@@ -438,7 +442,6 @@ def main():
     items_group = pygame.sprite.Group()
     enemies_group = pygame.sprite.Group()
 
-    # World Items & Enemy Setup
     sword_item = Item(250, 300, 'sword')
     items_group.add(sword_item, Item(550, 250, 'potion'), Item(400, 450, 'potion'))
     all_sprites.add(items_group)
@@ -459,7 +462,6 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-            # --- MENU INPUTS ---
             if state == "MENU":
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     play_r, opts_r, quit_r = menu_sys.draw_main_menu(screen, mouse_pos)
@@ -470,7 +472,6 @@ def main():
                     elif quit_r.collidepoint(mouse_pos):
                         running = False
 
-            # --- OPTIONS MENU INPUTS ---
             elif state == "OPTIONS":
                 if menu_sys.rebinding_key is not None:
                     if event.type == pygame.KEYDOWN:
@@ -492,22 +493,24 @@ def main():
                                 if opt_rects[action].collidepoint(mouse_pos):
                                     menu_sys.rebinding_key = action
 
-            # --- GAMEPLAY INPUTS ---
             elif state == "GAME":
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        state = "MENU"  # Pause/Return to Menu
+                    if event.key == pygame.K_MINUS:
+                        debug_mode = not debug_mode
+                        
+                    elif event.key == pygame.K_ESCAPE:
+                        state = "MENU"
                     elif event.key == menu_sys.keybinds['INVENTORY'] and player.hp > 0:
                         inventory_ui.toggle()
                     elif event.key == menu_sys.keybinds['ATTACK'] and not inventory_ui.is_open and player.hp > 0:
                         player.attack()
                     elif event.key == pygame.K_r and player.hp <= 0:
-                        main()  # Restart game
+                        main()
                         return
                     
                     inventory_ui.handle_input(event, player, menu_sys.keybinds)
 
-        # RENDER STATES
+        # RENDER
         if state == "MENU":
             menu_sys.draw_main_menu(screen, mouse_pos)
 
@@ -515,19 +518,16 @@ def main():
             menu_sys.draw_options_menu(screen, mouse_pos)
 
         elif state == "GAME":
-            # Updates
             if player.hp > 0:
                 player.update(pygame.key.get_pressed(), menu_sys.keybinds, can_move=not inventory_ui.is_open)
                 enemies_group.update(player.rect, can_move=not inventory_ui.is_open)
 
                 if not inventory_ui.is_open:
-                    # Item Collision
                     picked_items = pygame.sprite.spritecollide(player, items_group, True)
                     for item in picked_items:
                         if item not in player.inventory:
                             player.inventory.append(item)
 
-                    # Sword Damage Hit Logic
                     if player.is_attacking:
                         for enemy in enemies_group:
                             if player.attack_rect.colliderect(enemy.rect):
@@ -535,29 +535,59 @@ def main():
                                     enemy.take_damage(player.sword_damage)
                                     player.hit_enemies.add(enemy)
 
-                    # Enemy Touch Player Damage
                     hit_enemies = pygame.sprite.spritecollide(player, enemies_group, False)
                     for e in hit_enemies:
                         player.take_damage(e.damage)
 
-            # Draw Grass Background
             for y in range(0, SCREEN_HEIGHT, 40):
                 for x in range(0, SCREEN_WIDTH, 40):
                     color = GREEN_GRASS if (x // 40 + y // 40) % 2 == 0 else DARK_GRASS
                     pygame.draw.rect(screen, color, (x, y, 40, 40))
 
-            # Draw Entities
             player.draw_attack_slash(screen)
             all_sprites.draw(screen)
 
             for enemy in enemies_group:
                 enemy.draw_hp_bar(screen)
 
-            # Draw HUD
             inventory_ui.draw_hud(screen, player, menu_sys.keybinds)
+            
+            # DEBUG TOOL OVERLAY
+            if debug_mode:
+                # Draw Hitboxes
+                pygame.draw.rect(screen, DBG_PLAYER, player.rect, 2)
+                if player.is_attacking:
+                    pygame.draw.rect(screen, DBG_ATTACK, player.attack_rect, 2)
+                for enemy in enemies_group:
+                    pygame.draw.rect(screen, DBG_ENEMY, enemy.rect, 2)
+                for item in items_group:
+                    pygame.draw.rect(screen, DBG_TEXT, item.rect, 1)
+                
+                # Diagnostic Text Panel
+                debug_info = [
+                    f"DEBUG",
+                    f"FPS: {int(clock.get_fps())}",
+                    f"Player X/Y: {player.rect.x}, {player.rect.y}",
+                    f"Direction: {player.direction}",
+                    f"Attacking: {player.is_attacking}",
+                    f"Invincible: {player.invincible_timer > 0}",
+                    f"Enemies Alive: {len(enemies_group)}",
+                    f"Items Loaded: {len(items_group)}"
+                ]
+                
+                # Dark transparent background for text
+                overlay_surf = pygame.Surface((180, len(debug_info) * 22 + 10), pygame.SRCALPHA)
+                overlay_surf.fill((0, 0, 0, 180))
+                screen.blit(overlay_surf, (10, 75))
+                
+                # Render the text lines
+                for i, text in enumerate(debug_info):
+                    color = DBG_TEXT if i > 0 else (255, 100, 100)
+                    surf = font.render(text, True, color)
+                    screen.blit(surf, (15, 80 + i * 22))
+
             inventory_ui.draw_menu(screen, player, menu_sys.keybinds)
 
-            # Game Over Overlay
             if player.hp <= 0:
                 overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
                 overlay.fill((0, 0, 0, 180))
